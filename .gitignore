@@ -2,6 +2,7 @@
 /build/
 /build-portable/
 /.deps/
+/dist/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake

@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  linux-x86_64:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake git pkg-config curl ca-certificates \
+            libssl-dev zlib1g-dev libpng-dev libjpeg-dev \
+            libfreetype-dev libfontconfig1-dev libxml2-dev \
+            libbrotli-dev libexpat1-dev uuid-dev liblzma-dev libicu-dev
+
+      - name: Build portable binary
+        run: ./build-portable.sh
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          VER="${GITHUB_REF_NAME#v}"
+          STAGE="ccpsignpdf-${VER}-linux-x86_64"
+          mkdir -p "$STAGE"
+          cp -a build-portable/ccpsignpdf "$STAGE/ccpsignpdf"
+          cp LICENSE README.md "$STAGE/"
+          tar -czf "${STAGE}.tar.gz" "$STAGE"
+          sha256sum "${STAGE}.tar.gz" > "${STAGE}.tar.gz.sha256"
+          ls -lh "${STAGE}.tar.gz"*
+          ldd build-portable/ccpsignpdf || true
+          ./build-portable/ccpsignpdf --version
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: CcpSignPdf ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            Portable Linux x86_64 build. PoDoFo, OpenSSL, libcurl, and libstdc++
+            are linked in; only glibc (2.35+) is needed at runtime.
+
+            ```
+            tar xf ccpsignpdf-*-linux-x86_64.tar.gz
+            ./ccpsignpdf-*-linux-x86_64/ccpsignpdf --version
+            ```
+          files: |
+            ccpsignpdf-*-linux-x86_64.tar.gz
+            ccpsignpdf-*-linux-x86_64.tar.gz.sha256
